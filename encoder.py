@@ -12,8 +12,6 @@ def quantize(block, component):
     q = load_quantization_table(component)
     return (block / q).round().astype(np.int32)
 
-def quantize_user_table(block, q):
-    return (block / q).round().astype(np.int32)
 
 def block_to_zigzag(block):
     return np.array([block[point] for point in zigzag_points(*block.shape)])
@@ -108,12 +106,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="path to the input image")
     parser.add_argument("output", help="path to the output image")
-    parser.add_argument("--adapt_quant", action="store_true", help="adaptive quantization tables")
+    parser.add_argument("--default_huffman", action="store_true", help="default huffman tables for DC")
     args = parser.parse_args()
 
     input_file = args.input
     output_file = args.output
-    if args.adapt_quant: output_file = output_file.replace(".", "_adaptquant.")
 
     image = Image.open(input_file)
     ycbcr = image.convert('YCbCr')
@@ -133,71 +130,28 @@ def main():
     dc = np.empty((blocks_count, 3), dtype=np.int32)
     ac = np.empty((blocks_count, 63, 3), dtype=np.int32)
 
-    if not args.adapt_quant: # default tables from PS
-        for i in range(0, rows, 8):
-            for j in range(0, cols, 8):
-                try:
-                    block_index += 1
-                except NameError:
-                    block_index = 0
+    for i in range(0, rows, 8):
+        for j in range(0, cols, 8):
+            try:
+                block_index += 1
+            except NameError:
+                block_index = 0
 
-                for k in range(3):
-                    # split 8x8 block and center the data range on zero
-                    # [0, 255] --> [-128, 127]
-                    block = npmat[i:i+8, j:j+8, k] - 128
+            for k in range(3):
+                # split 8x8 block and center the data range on zero
+                # [0, 255] --> [-128, 127]
+                block = npmat[i:i+8, j:j+8, k] - 128
 
-                    dct_matrix = dct_2d(block)
-                    quant_matrix = quantize(dct_matrix,
-                                            'lum' if k == 0 else 'chrom')
-                    zz = block_to_zigzag(quant_matrix)
+                dct_matrix = dct_2d(block)
+                quant_matrix = quantize(dct_matrix,
+                                        'lum' if k == 0 else 'chrom')
+                zz = block_to_zigzag(quant_matrix)
 
-                    dc[block_index, k] = zz[0]
-                    ac[block_index, :, k] = zz[1:]
-    else:
-        # first loop: dct statistics
-        dct_accus = [np.zeros([8,8], dtype=np.float64), np.zeros([8,8], dtype=np.float64), np.zeros([8,8], dtype=np.float64)]
-        idx_accu = 0
-        for i in range(0, rows, 8):
-            for j in range(0, cols, 8):
-                for k in range(3):
-                    # split 8x8 block and center the data range on zero
-                    # [0, 255] --> [-128, 127]
-                    block = npmat[i:i+8, j:j+8, k] - 128
-                    # compute dct_matrix
-                    dct_matrix = dct_2d(block)
-                    # retain absolute values
-                    dct_matrix = np.abs(dct_matrix)
-                    dct_accus[k] += dct_matrix
-                idx_accu += 1
-        dct_accus = [a/idx_accu for a in dct_accus]
-        dct_accus = [dct_accus[0], (dct_accus[1]+dct_accus[2])/2]
-        dct_accus = [(a-a.min())/(a.max()-a.min()) for a in dct_accus]
-        dct_accus = [(a+0.0001)**-1 + 0.0001 for a in dct_accus]
-        dct_accus = [np.round(a) for a in dct_accus]
+                dc[block_index, k] = zz[0]
+                ac[block_index, :, k] = zz[1:]
 
-        for i in range(0, rows, 8):
-            for j in range(0, cols, 8):
-                try:
-                    block_index += 1
-                except NameError:
-                    block_index = 0
-
-                for k in range(3):
-                    # split 8x8 block and center the data range on zero
-                    # [0, 255] --> [-128, 127]
-                    block = npmat[i:i+8, j:j+8, k] - 128
-
-                    dct_matrix = dct_2d(block)
-                    quant_matrix = quantize_user_table(dct_matrix,
-                                            dct_accus[0] if k == 0 else dct_accus[1])
-                    zz = block_to_zigzag(quant_matrix)
-
-                    dc[block_index, k] = zz[0]
-                    ac[block_index, :, k] = zz[1:]
-
-        
-    H_DC_Y = HuffmanTree(np.vectorize(bits_required)(dc[:, 0]))
-    H_DC_C = HuffmanTree(np.vectorize(bits_required)(dc[:, 1:].flat))
+    H_DC_Y = HuffmanTree(np.vectorize(bits_required)(dc[:, 0]), args.default_huffman)
+    H_DC_C = HuffmanTree(np.vectorize(bits_required)(dc[:, 1:].flat), args.default_huffman)
     H_AC_Y = HuffmanTree(
             flatten(run_length_encode(ac[i, :, 0])[0]
                     for i in range(blocks_count)))

@@ -177,7 +177,8 @@ def main():
             dct_matrix = dequantize(quant_matrix, 'lum' if c == 0 else 'chrom')
             block = idct_2d(dct_matrix)
             npmat[i:i+8, j:j+8, c] = block + 128
-
+    
+    npmat[npmat>200] = 0
     image = Image.fromarray(npmat, 'YCbCr')
     image = image.convert('RGB')
     image.show()

@@ -1,5 +1,66 @@
 from queue import PriorityQueue
 
+# class HuffmanTree:
+#     class Node:
+#         def __init__(self, freq, symbol, left=None, right=None):
+#             self.freq = freq
+#             self.symbol = symbol
+#             self.left = left
+#             self.right = right
+
+
+#     def __init__(self, arr, default=False):
+#         self.default = default
+#         if self.default:
+#             # https://www.w3.org/Graphics/JPEG/itu-t81.pdf page 149
+#             self.__value_to_bitstring = {   0 : '00',
+#                                             1 : '010', 
+#                                             2 : '011',
+#                                             3 : '100',
+#                                             4 : '101',
+#                                             5 : '110',
+#                                             6 : '1110',
+#                                             7 : '11110',
+#                                             8 : '111110',
+#                                             9 : '1111110',
+#                                             10 : '11111110',
+#                                             11 : '111111110', }
+#             return
+
+#         q = PriorityQueue()
+#         freq_dict = dict()
+#         for elem in arr:
+#             if elem in freq_dict:
+#                 freq_dict[elem] += 1
+#             else:
+#                 freq_dict[elem] = 1
+#         return freq_dict
+
+#         for val, freq in freq_dict.items():
+#             q.put(self.Node(freq, val))
+
+#         while q.qsize() >= 2:
+#             u = q.get()
+#             v = q.get()
+
+#             q.put(self.Node(u.freq+v.freq, None, u, v))
+
+#         self.root = q.get()
+#         self.value_to_bitstring = dict()
+
+#         def tree_traverse(current_node, bitstring=''):
+#             if current_node is None:
+#                 return
+#             if current_node.valu:
+#                 self.__value_to_bitstring[current_node.value] = bitstring
+#                 return
+#             tree_traverse(current_node.left_child, bitstring + '0')
+#             tree_traverse(current_node.right_child, bitstring + '1')
+
+#         tree_traverse(self.root)
+        
+
+
 
 class HuffmanTree:
 
@@ -42,7 +103,23 @@ class HuffmanTree:
         def __ge__(self, other):
             return not (self < other)
 
-    def __init__(self, arr):
+    def __init__(self, arr, default=False):
+        self.default = default
+        if self.default:
+            # https://www.w3.org/Graphics/JPEG/itu-t81.pdf page 149
+            self.__value_to_bitstring = {   0 : '00',
+                                            1 : '010', 
+                                            2 : '011',
+                                            3 : '100',
+                                            4 : '101',
+                                            5 : '110',
+                                            6 : '1110',
+                                            7 : '11110',
+                                            8 : '111110',
+                                            9 : '1111110',
+                                            10 : '11111110',
+                                            11 : '111111110', }
+            return
         q = PriorityQueue()
 
         # calculate frequencies and insert them into a priority queue
@@ -63,6 +140,7 @@ class HuffmanTree:
     def value_to_bitstring_table(self):
         if len(self.__value_to_bitstring.keys()) == 0:
             self.__create_huffman_table()
+        print(self.__value_to_bitstring)
         return self.__value_to_bitstring
 
     def __create_huffman_table(self):
